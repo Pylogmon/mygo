@@ -3333,29 +3333,38 @@ func deviceScale(w *mygo.Window) float64 {
 // TestContentWindowTextSelection drags across independently laid-out
 // paragraphs and copies their selection through the native Edit menu.
 func TestContentWindowTextSelection(t *testing.T) {
+	preserveClipboard(t)
+	const first, second = "First paragraph. 中文 𠮷", "Second paragraph. 😀"
+	const padding = 20
 	var frames atomic.Int32
 	view := func(c *ui.Context) {
 		frames.Add(1)
-		ui.Column(c).Fill().Padding(20).Gap(20).Selectable().Children(func() {
-			ui.Text(c, "First paragraph.").Height(30)
-			ui.Text(c, "Second paragraph.").Height(30)
+		ui.Column(c).Fill().Padding(padding).Gap(20).Selectable().Children(func() {
+			ui.Text(c, first).Height(30)
+			ui.Text(c, second).Height(30)
 		})
 	}
 	w := newWindow(t, mygo.WindowOptions{Title: "Text selection", Width: 400, Height: 200, Content: ui.View(view)})
+	prev := mygo.App.Menu()
 	mygo.App.SetMenu(mygo.NewMenu([]*mygo.MenuItem{{Role: mygo.RoleEditMenu}}))
-	defer mygo.App.SetMenu(nil)
-	clipboard := mygo.Clipboard.ReadText()
-	defer mygo.Clipboard.WriteText(clipboard)
+	defer mygo.App.SetMenu(prev)
 	w.Focus()
 	eventually(t, "a frame", func() bool { return frames.Load() > 0 })
 	var copied string
+	want := first + "\n" + second
+	if runtime.GOOS == "windows" {
+		want = first + "\r\n" + second
+	}
 	t.Cleanup(func() {
 		if t.Failed() {
 			t.Logf("last copied text: %q", copied)
 		}
 	})
+	// The window frame can reduce the content width. End the drag inside
+	// the second paragraph's box, to the right of its text.
+	endX := float64(w.ContentBounds().Width - padding - 10)
 	for _, reverse := range []bool{false, true} {
-		points := [][2]float64{{20, 28}, {380, 78}}
+		points := [][2]float64{{padding, 28}, {endX, 78}}
 		if reverse {
 			slices.Reverse(points)
 		}
@@ -3370,7 +3379,7 @@ func TestContentWindowTextSelection(t *testing.T) {
 		}
 		eventually(t, "both paragraphs copied", func() bool {
 			copied = mygo.Clipboard.ReadText()
-			return copied == "First paragraph.\nSecond paragraph."
+			return copied == want
 		})
 	}
 }

@@ -93,6 +93,10 @@ still accept TIFF, GTK image targets, and Windows DIBs. `WriteFiles` and
 `ReadFiles` exchange native file lists. Empty `Write`/`WriteFiles` clears the
 clipboard. A failed write does not install its release hook.
 
+On Windows, `ReadText` reads the native `CF_UNICODETEXT` format with CRLF line
+endings. MyGo also offers registered `text/plain`, which
+`ReadFormat(transfer.Text)` reads as the original bytes.
+
 ## Observing changes
 
 `Clipboard.OnChanged` observes changes made by this app or another app, and
