@@ -52,8 +52,6 @@ if err == nil {
 
 现有的 `ReadText`、`WriteText`、`ReadHTML`、`WriteHTML`、`ReadImage`、`WriteImage` 和 `Clear` 保持原有签名。`WriteHTML` 在所有平台上都提供 HTML 和文本回退，修复了 Linux 以前只能处理文本的行为。`WriteImage` 在替换现有数据之前校验 PNG；原生图像读取器仍然接受 TIFF、GTK 图像目标和 Windows DIB。`WriteFiles` 和 `ReadFiles` 交换原生文件列表。`Write`/`WriteFiles` 传入空内容时会清除剪贴板。写入失败时不会安装它的释放钩子。
 
-在 Windows 上，`ReadText` 读取以 CRLF 换行的原生 `CF_UNICODETEXT` 格式。MyGo 同时提供已注册的 `text/plain` 格式，供 `ReadFormat(transfer.Text)` 读取原始字节。
-
 ## 观察变化
 
 `Clipboard.OnChanged` 观察本应用或其他应用造成的变化，并像其他 `On…` 监听器一样返回停止观察的函数。它不读取剪贴板内容，也不调用内容的提供方。在回调中只读取你的应用需要的格式：

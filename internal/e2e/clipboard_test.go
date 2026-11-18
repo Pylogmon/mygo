@@ -27,10 +27,9 @@ import (
 )
 
 const (
-	clipboardCustom   transfer.Format = "application/vnd.mygo.clipboard-e2e"
-	clipboardText                     = "中文 𠮷\n\n\t😀"
-	clipboardTextCRLF                 = "中文 𠮷\r\n\r\n\t😀"
-	clipboardHTML                     = "<b>中文 𠮷</b><br><br>\t😀"
+	clipboardCustom transfer.Format = "application/vnd.mygo.clipboard-e2e"
+	clipboardText                   = "中文 𠮷\n\n\t😀"
+	clipboardHTML                   = "<b>中文 𠮷</b><br><br>\t😀"
 )
 
 type clipboardPeerResult struct {
@@ -51,7 +50,6 @@ func clipboardTestData(provider func() ([]byte, error)) transfer.Data {
 		transfer.NewItem(
 			transfer.Bytes(transfer.Text, []byte(clipboardText)),
 			transfer.Bytes(transfer.HTML, []byte(clipboardHTML)),
-			transfer.Bytes(transfer.Markdown, []byte("**中文 𠮷**\n\n\t😀")),
 			transfer.Bytes(transfer.PNG, encoded.Bytes()),
 			transfer.Lazy(clipboardCustom, provider),
 		),
@@ -174,11 +172,7 @@ func TestUnifiedClipboardNativeRoundTrip(t *testing.T) {
 	if calls.Load() != 2 {
 		t.Fatalf("provider calls %d", calls.Load())
 	}
-	wantText := clipboardText + "\nsecond"
-	if runtime.GOOS == "windows" {
-		wantText = clipboardTextCRLF + "\r\nsecond"
-	}
-	if r.Text != wantText || r.HTML != clipboardHTML {
+	if r.Text != clipboardText+"\nsecond" || r.HTML != clipboardHTML {
 		t.Fatalf("native conveniences: %q, %q", r.Text, r.HTML)
 	}
 	if img, err := png.Decode(bytes.NewReader(r.Image)); err != nil || img.Bounds().Dx() != 2 {
@@ -209,15 +203,11 @@ func TestUnifiedClipboardConcealed(t *testing.T) {
 	preserveClipboard(t)
 	mark := map[string]string{"darwin": "org.nspasteboard.ConcealedType", "linux": "x-kde-passwordManagerHint", "windows": "ExcludeClipboardContentFromMonitorProcessing"}[runtime.GOOS]
 	formats := []transfer.Format{transfer.Text}
-	wantText := clipboardText
-	if runtime.GOOS == "windows" {
-		wantText = clipboardTextCRLF
-	}
 	if runtime.GOOS == "linux" {
 		// Klipper and CopyQ compare the hint's value.
 		formats = append(formats, transfer.Format(mark))
 	}
-	if err := mygo.Clipboard.Write(transfer.TextData(clipboardText), mygo.ClipboardOptions{Concealed: true}); err != nil {
+	if err := mygo.Clipboard.Write(transfer.TextData("hunter2"), mygo.ClipboardOptions{Concealed: true}); err != nil {
 		t.Fatal(err)
 	}
 	for _, flushed := range []bool{false, true} {
@@ -227,7 +217,7 @@ func TestUnifiedClipboardConcealed(t *testing.T) {
 			}
 		}
 		r := readClipboardPeer(t, formats...)
-		if r.Text != wantText || !slices.Contains(r.Native, mark) {
+		if r.Text != "hunter2" || !slices.Contains(r.Native, mark) {
 			t.Fatalf("flushed %t: text %q, native formats %q lack %q", flushed, r.Text, r.Native, mark)
 		}
 		if runtime.GOOS == "linux" && string(r.Values[transfer.Format(mark)]) != "secret" {
@@ -376,11 +366,7 @@ func TestUnifiedClipboardNativePersistence(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("clipboard writer shutdown: %v; %s", err, out)
 	}
-	wantText := clipboardText
-	if runtime.GOOS == "windows" {
-		wantText = clipboardTextCRLF
-	}
-	if got := mygo.Clipboard.ReadText(); got != wantText {
-		t.Fatalf("text after application exit: %q, want %q", got, wantText)
+	if got := mygo.Clipboard.ReadText(); got != clipboardText {
+		t.Fatalf("text after application exit: %q, want %q", got, clipboardText)
 	}
 }
